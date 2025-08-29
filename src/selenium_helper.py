@@ -5,9 +5,38 @@ from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.wait import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
+from selenium.common.exceptions import NoSuchElementException, ElementClickInterceptedException
 
 import sys
 import time
+
+# Dismiss the cookie banner before doing anything else
+def dismiss_cookies(driver):
+    try:
+        # Common OneTrust accept button id
+        btn = WebDriverWait(driver, 5).until(
+            EC.element_to_be_clickable((By.ID, "onetrust-accept-btn-handler"))
+        )
+        try:
+            btn.click()
+        except ElementClickInterceptedException:
+            driver.execute_script("arguments[0].click();", btn)
+        # small wait for banner to disappear
+        WebDriverWait(driver, 5).until(
+            EC.invisibility_of_element_located((By.ID, "onetrust-banner-sdk"))
+        )
+    except Exception:
+        # If not present, ignore
+        pass
+
+# Safe click helper that scrolls + falls back to JS if intercepted 
+def safe_click(driver, element):
+    driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", element)
+    try:
+        WebDriverWait(driver, 5).until(EC.element_to_be_clickable(element))
+        element.click()
+    except ElementClickInterceptedException:
+        driver.execute_script("arguments[0].click();", element)
 
 def fetch_course_weightings(course_code, year, term):
     # Error handling for input
@@ -18,8 +47,8 @@ def fetch_course_weightings(course_code, year, term):
 
     # Setup Chrome options
     options = webdriver.ChromeOptions()
-    options.add_argument('headless')
-    options.add_argument("--silent") 
+    options.add_argument("--headless=new")
+    options.add_argument("--window-size=1920,1080")  
     options.add_argument("--log-level=3")
     options.add_experimental_option('excludeSwitches', ['enable-logging'])
 
@@ -28,6 +57,8 @@ def fetch_course_weightings(course_code, year, term):
     try:
         # Navigate to the desired URL
         driver.get("https://www.unsw.edu.au/course-outlines")
+        
+        dismiss_cookies(driver)
 
         # Search course code
         search = driver.find_element(By.ID, "degree-search-input")
@@ -38,35 +69,39 @@ def fetch_course_weightings(course_code, year, term):
         select_year = WebDriverWait(driver, 5).until(
             EC.element_to_be_clickable((By.XPATH, '//button[@role="combobox" and @aria-expanded="false" and @aria-haspopup="listbox" and @aria-controls="dropdown-year-body" and @aria-labelledby="dropdown-year"]'))
         )
-        select_year.click()
+        safe_click(driver, select_year)
 
-        if year == "2024":
+        if year == "2025":
             selected_year = WebDriverWait(driver, 5).until(
                 EC.element_to_be_clickable((By.ID, "dropdown-year-0"))
             )
-        else:
+        elif year == "2024":
             selected_year = WebDriverWait(driver, 5).until(
                 EC.element_to_be_clickable((By.ID, "dropdown-year-1"))
             )
-        selected_year.click()
+        else:
+            selected_year = WebDriverWait(driver, 5).until(
+                EC.element_to_be_clickable((By.ID, "dropdown-year-2"))
+            )
+        safe_click(driver, selected_year) 
 
         # Select term
         select_term = driver.find_element(By.XPATH, '//button[@role="combobox" and @aria-expanded="false" and @aria-haspopup="listbox" and @aria-controls="dropdown-term-body" and @aria-labelledby="dropdown-term"]')
-        select_term.click()
+        safe_click(driver, select_term)
 
         if term == "1":
             selected_term = WebDriverWait(driver, 5).until(
-                EC.element_to_be_clickable((By.ID, "dropdown-term-9"))
+                EC.element_to_be_clickable((By.ID, "dropdown-term-10"))
             )
         elif term == "2":
             selected_term = WebDriverWait(driver, 5).until(
-                EC.element_to_be_clickable((By.ID, "dropdown-term-10"))
+                EC.element_to_be_clickable((By.ID, "dropdown-term-11"))
             )
         else:
             selected_term = WebDriverWait(driver, 5).until(
-                EC.element_to_be_clickable((By.ID, "dropdown-term-11"))
+                EC.element_to_be_clickable((By.ID, "dropdown-term-12"))
             )
-        selected_term.click()
+        safe_click(driver, selected_term)
 
         time.sleep(3)
         
@@ -78,7 +113,7 @@ def fetch_course_weightings(course_code, year, term):
             
             # Open relevant course outline
             button = tables_results.find_element(By.CSS_SELECTOR, 'a')
-            button.click()
+            safe_click(driver, button)
         except TimeoutException:
             raise RuntimeError(f"No course outline found for {course_code.upper()} {year} Term {term}")
 
@@ -86,7 +121,7 @@ def fetch_course_weightings(course_code, year, term):
         assessments_button = WebDriverWait(driver, 10).until(
             EC.element_to_be_clickable((By.CSS_SELECTOR, 'span[data-click_name="Assessments"]'))
         )
-        assessments_button.click()
+        safe_click(driver, assessments_button) 
 
         # Handle assessment items
         course_outline = WebDriverWait(driver, 10).until(
