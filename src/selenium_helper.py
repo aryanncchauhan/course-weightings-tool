@@ -9,7 +9,7 @@ from selenium.webdriver.support import expected_conditions as EC
 import sys
 import time
 
-def fetch_course_weightings(course_code, year, term, chrome_driver_path="C:/Program Files (x86)/chromedriver.exe"):
+def fetch_course_weightings(course_code, year, term):
     # Error handling for input
     valid_years = ["2023", "2024", "2025"]
     valid_terms = ["1", "2", "3"]
@@ -23,9 +23,7 @@ def fetch_course_weightings(course_code, year, term, chrome_driver_path="C:/Prog
     options.add_argument("--log-level=3")
     options.add_experimental_option('excludeSwitches', ['enable-logging'])
 
-    # Initialize WebDriver
-    service = Service(executable_path=chrome_driver_path)
-    driver = webdriver.Chrome(service=service, options=options)
+    driver = webdriver.Chrome(options=options)
 
     try:
         # Navigate to the desired URL
