@@ -11,7 +11,7 @@ import time
 
 def fetch_course_weightings(course_code, year, term, chrome_driver_path="C:/Program Files (x86)/chromedriver.exe"):
     # Error handling for input
-    valid_years = ["2023", "2024"]
+    valid_years = ["2023", "2024", "2025"]
     valid_terms = ["1", "2", "3"]
     if year not in valid_years or term not in valid_terms:
         raise ValueError("Invalid year or term provided")
